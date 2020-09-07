@@ -1,0 +1,16 @@
+{
+  "name": "amongusbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "N3rvy",
+  "license": "ISC",
+  "dependencies": {
+    "dblapi.js": "^2.4.1",
+    "discord.js": "^12.3.1",
+    "discord.js-commando": "^0.10.0"
+  }
+}
