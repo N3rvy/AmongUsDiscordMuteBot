@@ -2,11 +2,14 @@ const { Client, UserManager } = require('discord.js')
 const client = new Client()
 const prefix = "."
 
-const NOT_JOINED_STRING = "Questa chat non e' attualmente collegata a nessun canale prima di eseguire un qualsiasi comando prima scrivi: .impostacanale"
-
 let channels = {}
 
-client.login('')
+if (!!process.env.ID) {
+    console.log("Enviroment variable ID not set")
+    process.exit(1)
+}
+
+client.login(process.env.ID)
 
 client.on("ready", () => {
     console.log("Bot loaded")
@@ -21,7 +24,7 @@ client.on("message", async message => {
 
     const cmd = commands[args[0].toLowerCase()]
 
-    if (channels[message.channel] === undefined) {
+    if (!!channels[message.channel]) {
         if (!anywereCommands.includes(args[0])) {
             message.channel.send("Non puoi usare questo comando in questo canale")
                 .then((m) => {
@@ -34,12 +37,12 @@ client.on("message", async message => {
     
     const reply = cmd(args, message)
 
-    if (reply !== undefined && reply.text !== undefined) {
+    if (reply && reply.text) {
         let msg = message.channel.send(reply.text);
-        if (reply.delete || reply.delete === undefined)
+        if (reply.delete || !!reply.delete)
             msg.then((m) => {
                 if (m.deletable)
-                    m.delete({ timeout: reply.time === undefined ? 5000 : reply.time })
+                    m.delete({ timeout: reply.time || 5000 })
             })
     }
 })
@@ -62,7 +65,6 @@ const commands = {
     },
     "rimuovicanale": (args, message) => {
         reset(message.channel)
-
         channels[message.channel] = undefined
 
         return response
@@ -98,7 +100,7 @@ const commands = {
 
         mute(message.member, true)
 
-        if (args[1] !== undefined)
+        if (args[1])
             return message.member.nickname + " e' stato/a " + args[1]
 
         return { 
@@ -119,14 +121,14 @@ const commands = {
         let rand = Math.round(Math.random() * 1)
 
         if (rand == 0) response = message.author.username + " ha usato il totem of undying"
-        else response = "You aro not gonna kill my allies!!! cit. Sage"
+        else response = "You are not gonna kill my allies!!! cit. Sage"
 
         return response
     },
     "riavvia": (args, message) => {
         reset(message.channel)
         
-        let response = args[1] !== undefined ? "I vincitori di questo game sono " + args[1] + "\n Startato nuovo game..." : "Startando un nuovo game..."
+        let response = args[1] ? "I vincitori di questo game sono " + args[1] + "\n Startato nuovo game..." : "Startando un nuovo game..."
             
         return {
             text: response
@@ -143,15 +145,6 @@ function reset(channel) {
     channels[channel].deadPlayers = []
 }
 
-async function mutedeaf(member, mute) {
-    mute(member, mute)
-    deaf(member, mute)
-}
-
 async function mute(member, mute) {
     member.voice.setMute(mute)
-}
-
-async function deaf(member, deaf) {
-    member.voice.setDeaf(deaf)
 }
