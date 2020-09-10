@@ -1,12 +1,12 @@
-const { Client } = require('discord.js')
+const { Client, UserManager } = require('discord.js')
 const client = new Client()
 const prefix = "."
 
-let connection,
-    deadPlayers = [],
-    isPlaying = false
+const NOT_JOINED_STRING = "Questa chat non e' attualmente collegata a nessun canale prima di eseguire un qualsiasi comando prima scrivi: .impostacanale"
 
-client.login('NzUwMzI3NDE1OTUxMzI3Mjkz.X0463A.nL7GqBL3TGltTz0J-FfacEkBPLs')
+let channels = {}
+
+client.login('')
 
 client.on("ready", () => {
     console.log("Bot loaded")
@@ -20,106 +20,127 @@ client.on("message", async message => {
     if (message.deletable) message.delete();
 
     const cmd = commands[args[0].toLowerCase()]
-    if (cmd === undefined) message.channel.send("Comando non valido")
-    else {
-        const reply = cmd(args, message)
 
-        if (reply !== undefined && reply !== "")
-            message.channel.send(reply)
+    if (channels[message.channel] === undefined) {
+        if (!anywereCommands.includes(args[0])) {
+            message.channel.send("Non puoi usare questo comando in questo canale")
+                .then((m) => {
+                    if (m.deletable)
+                        m.delete({ timeout: 3500 })
+                })
+            return
+        }
+    }
+    
+    const reply = cmd(args, message)
+
+    if (reply !== undefined && reply.text !== undefined) {
+        let msg = message.channel.send(reply.text);
+        if (reply.delete || reply.delete === undefined)
+            msg.then((m) => {
+                if (m.deletable)
+                    m.delete({ timeout: reply.time === undefined ? 5000 : reply.time })
+            })
     }
 })
 
+const anywereCommands = [
+    "impostacanale",
+]
+
 const commands = {
-    "entra": (args, message) => {
-        if (message.member.voice.channel) {
-            const conn = async () => {
-                connection = await message.member.voice.channel.join()
-                
-                reset()    
-            }
-            conn()
-        } else
-            return "Non sei in un canale vocale"
+    "impostacanale": (args, message) => {
+        channels[message.channel] = { 
+            voice: message.member.voice.channel,
+            deadPlayers: [],
+            isPlaying: true,
+        }
+
+        return {
+            text: "Ora il canale testuale " + message.channel.name + " e' collegato al canale vocale " + message.member.voice.channel.name,
+        }
     },
-    "esci": (args, message) => {
-        if (!connection) return "Non sono in un canale per piacere usa .join prima di usare gli altri comandi"
+    "rimuovicanale": (args, message) => {
+        reset(message.channel)
 
-        reset()
+        channels[message.channel] = undefined
 
-        connection.disconnect()
-        connection = undefined
+        return response
     },
     "muta": (args, message) => {
-        if (!connection) return "Non sono in un canale per piacere usa .join prima di usare gli altri comandi"
-
-        for (let member of connection.channel.members) {
+        for (let member of channels[message.channel].voice.members) {
             if (member[1].user.bot) continue
-            if (!deadPlayers.includes(member[1].user.id))
+            if (!channels[message.channel].deadPlayers.includes(member[1].user.id))
                 mute(member[1], true)
         }
 
-        isPlaying = true
+        channels[message.channel].isPlaying = true
 
-        return message.author.username + " ha mutato tutti"
+        return { 
+            text: message.author.username + " ha mutato tutti"
+        }
     },
     "smuta": (args, message) => {
-        if (!connection) return "Non sono in un canale per piacere usa .join prima di usare gli altri comandi"
-
-        for (let member of connection.channel.members) {
+        for (let member of channels[message.channel].voice.members) {
             if (member[1].user.bot) continue
-            if (!deadPlayers.includes(member[1].user.id))
+            if (!channels[message.channel].deadPlayers.includes(member[1].user.id))
                 mute(member[1], false)
         }
 
-        isPlaying = false
+        channels[message.channel].isPlaying = false
 
-        return message.author.username + " ha smutato tutti"
+        return { 
+            text: message.author.username + " ha smutato tutti"
+        }
     },
     "morto": (args, message) => {
-        deadPlayers.push(message.author.id)
+        channels[message.channel].deadPlayers.push(message.author.id)
 
         mute(message.member, true)
 
-        return message.author.username + " e` morto/a"
+        if (args[1] !== undefined)
+            return message.member.nickname + " e' stato/a " + args[1]
+
+        return { 
+            text: message.member.nickname + " e' morto/a"
+        }
     },
     "resuscita": (args, message) => {
-        const index = deadPlayers.indexOf(message.author.id)
-        if (index > -1)
-            deadPlayers.splice(index, 1)
+        if (!channels[message.channel].deadPlayers.includes(message.author.id)) return "Come ti resuscito se non sei morto/a?"
 
-        if (!isPlaying)
+        const index = channels[message.channel].deadPlayers.indexOf(message.author.id)
+        if (index > -1)
+            channels[message.channel].deadPlayers.splice(index, 1)
+
+        if (!channels[message.channel].isPlaying)
             mute(message.member, false)
-        
-        return message.author.username + " ha usato il totem of undying"
-    },
-    "numeromorti": () => {
-        if (isPlaying) return "Non e' possibile utilizzare questo comando durante questa fase della partita"
-        return "Player morti: " + deadPlayers.length
+
+        let response
+        let rand = Math.round(Math.random() * 1)
+
+        if (rand == 0) response = message.author.username + " ha usato il totem of undying"
+        else response = "You aro not gonna kill my allies!!! cit. Sage"
+
+        return response
     },
     "riavvia": (args, message) => {
-        if (!connection) return "Non sono in un canale per piacere usa .join prima di usare gli altri comandi"
+        reset(message.channel)
         
-        reset()
-
-        return "I vincitori di questo game sono " + args[1] + "\n Startato nuovo game"
-    },
-    "codice": (args, message) => {
-        if (args[1] === undefined || args[1].length != 4) return "Codice non valido"
-
-        message.guild.me.setNickname("!CODICE: " + args[1])
-    },
-    "resettanome": (args, message) => {
-        message.guild.me.setNickname("Among Us Auto mute")
+        let response = args[1] !== undefined ? "I vincitori di questo game sono " + args[1] + "\n Startato nuovo game..." : "Startando un nuovo game..."
+            
+        return {
+            text: response
+        }
     },
 }
 
-function reset() {
-    for (let member of connection.channel.members) {
+function reset(channel) {
+    for (let member of channels[channel].voice.members) {
         if (!member[1].user.bot)
             mute(member[1], false)
     }
 
-    deadPlayers = []
+    channels[channel].deadPlayers = []
 }
 
 async function mutedeaf(member, mute) {
