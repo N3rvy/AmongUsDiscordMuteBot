@@ -1,150 +1,61 @@
-const { Client, UserManager } = require('discord.js')
-const client = new Client()
-const prefix = "."
-
-let channels = {}
-
-if (!!process.env.ID) {
-    console.log("Enviroment variable ID not set")
+if (process.argv.length < 4) {
+    console.log("Must have 2 arguments ID(discord bot id) and LEN(language name)")
     process.exit(1)
 }
 
-client.login(process.env.ID)
+const { CommandManager } = require('./CommandsManager.js')
+const { Client } = require('discord.js')
+const fs = require('fs')
+const client = new Client()
+
+//************  Loading language JSON  **************
+
+const language = JSON.parse(fs.readFileSync(process.argv[3] + ".json", 'utf-8'))
+
+//************  Initialization  **************
+
+client.login(process.argv[2])
+
+CommandManager.Init(language)
+
+//************  Setting up events  **************
 
 client.on("ready", () => {
     console.log("Bot loaded")
 })
 
 client.on("message", async message => {
-    if (message.author.bot || !message.content.startsWith(prefix)) return
-
-    const args = message.content.slice(prefix.length).trim().split(" ")
-
-    if (message.deletable) message.delete();
-
-    const cmd = commands[args[0].toLowerCase()]
-
-    if (!!channels[message.channel]) {
-        if (!anywereCommands.includes(args[0])) {
-            message.channel.send("Non puoi usare questo comando in questo canale")
-                .then((m) => {
-                    if (m.deletable)
-                        m.delete({ timeout: 3500 })
-                })
-            return
-        }
-    }
-    
-    const reply = cmd(args, message)
-
-    if (reply && reply.text) {
-        let msg = message.channel.send(reply.text);
-        if (reply.delete || !!reply.delete)
-            msg.then((m) => {
-                if (m.deletable)
-                    m.delete({ timeout: reply.time || 5000 })
-            })
-    }
+    if (CommandManager.IsCommand(message))
+        CommandManager.ExecuteCommand(message)
 })
 
-const anywereCommands = [
-    "impostacanale",
-]
+//************  Setting up commands  **************
 
-const commands = {
-    "impostacanale": (args, message) => {
-        channels[message.channel] = { 
-            voice: message.member.voice.channel,
-            deadPlayers: [],
-            isPlaying: true,
-        }
+CommandManager.AddCommand("set", (args, message) => {
+    CommandManager.NewGame(message.channel, message.member.voice.channel)
+})
 
-        return {
-            text: "Ora il canale testuale " + message.channel.name + " e' collegato al canale vocale " + message.member.voice.channel.name,
-        }
-    },
-    "rimuovicanale": (args, message) => {
-        reset(message.channel)
-        channels[message.channel] = undefined
+CommandManager.AddCommand("reset", (args, message) => {
+    CommandManager.games[message.channel].Reset()
+    CommandManager.games[message.channel] = undefined
+})
 
-        return response
-    },
-    "muta": (args, message) => {
-        for (let member of channels[message.channel].voice.members) {
-            if (member[1].user.bot) continue
-            if (!channels[message.channel].deadPlayers.includes(member[1].user.id))
-                mute(member[1], true)
-        }
+CommandManager.AddCommand("mute", (args, message) => {
+    CommandManager.games[message.channel].ToggleMute(true)
+})
 
-        channels[message.channel].isPlaying = true
+CommandManager.AddCommand("unmute", (args, message) => {
+    CommandManager.games[message.channel].ToggleMute(false)
+})
 
-        return { 
-            text: message.author.username + " ha mutato tutti"
-        }
-    },
-    "smuta": (args, message) => {
-        for (let member of channels[message.channel].voice.members) {
-            if (member[1].user.bot) continue
-            if (!channels[message.channel].deadPlayers.includes(member[1].user.id))
-                mute(member[1], false)
-        }
+CommandManager.AddCommand("dead", (args, message) => {
+    return CommandManager.games[message.channel].Die(message.member, message.author.id)
+})
 
-        channels[message.channel].isPlaying = false
+CommandManager.AddCommand("resurrect", (args, message) => {
+    return CommandManager.games[message.channel].Resurrect(message.member, message.author.id)
+})
 
-        return { 
-            text: message.author.username + " ha smutato tutti"
-        }
-    },
-    "morto": (args, message) => {
-        channels[message.channel].deadPlayers.push(message.author.id)
-
-        mute(message.member, true)
-
-        if (args[1])
-            return message.member.nickname + " e' stato/a " + args[1]
-
-        return { 
-            text: message.member.nickname + " e' morto/a"
-        }
-    },
-    "resuscita": (args, message) => {
-        if (!channels[message.channel].deadPlayers.includes(message.author.id)) return "Come ti resuscito se non sei morto/a?"
-
-        const index = channels[message.channel].deadPlayers.indexOf(message.author.id)
-        if (index > -1)
-            channels[message.channel].deadPlayers.splice(index, 1)
-
-        if (!channels[message.channel].isPlaying)
-            mute(message.member, false)
-
-        let response
-        let rand = Math.round(Math.random() * 1)
-
-        if (rand == 0) response = message.author.username + " ha usato il totem of undying"
-        else response = "You are not gonna kill my allies!!! cit. Sage"
-
-        return response
-    },
-    "riavvia": (args, message) => {
-        reset(message.channel)
-        
-        let response = args[1] ? "I vincitori di questo game sono " + args[1] + "\n Startato nuovo game..." : "Startando un nuovo game..."
-            
-        return {
-            text: response
-        }
-    },
-}
-
-function reset(channel) {
-    for (let member of channels[channel].voice.members) {
-        if (!member[1].user.bot)
-            mute(member[1], false)
-    }
-
-    channels[channel].deadPlayers = []
-}
-
-async function mute(member, mute) {
-    member.voice.setMute(mute)
-}
+CommandManager.AddCommand("restart", (args, message) => {
+    CommandManager.games[message.channel].Reset()
+})

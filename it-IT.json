@@ -1,0 +1,23 @@
+{
+    "prefix": ".",
+    "commands": {
+        "set": ["impostacanale"],
+        "reset": ["resettacanale"],
+        "mute": ["muta"],
+        "unmute": ["smuta"],
+        "dead": ["morto"],
+        "resurrect": ["resuscita"],
+        "restart": ["riavvia"]
+    },
+    "responses": {
+        "set": ["Ora il canale testuale {channel} e' collegato al canale vocale {voiceChannel}"],
+        "reset": ["Ora questo canale non e' piu' collegato a nessun canale vocale"],
+        "mute": ["{author} ha mutato tutti", "{author} vi ha tolto le parole di bocca"],
+        "unmute": ["{author} ha smutato tutti", "Ora potete parlare schiavi... Quelli vivi per lo meno"],
+        "dead": ["{author} e' morto/a", "{author} e' stato/a clappato/a", "gg ez, {author}"],
+        "err_dead": ["Sei gia morto/a coglione/a", "Ma sei down?", "Ti devo resuscitare per poi riucciderti?"],
+        "resurrect": ["{author} ha usato il totem of undying", "You will not kill my allies!!! cit. Sage"],
+        "err_ressurect": ["Come faccio a resuscitarti se non sei morto/a", "Ti dovrei killare e resuscitare? No sparati!"],
+        "restart": ["Partita riavviata       {0}   {1}"]
+    }
+}
