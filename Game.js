@@ -45,7 +45,7 @@ class Game {
 
         for (let member of this.voice.members) {
             if (member[1].user.bot) continue
-            member[1].voice.setMute(true)
+            member[1].voice.setMute(false)
         }
     }
 }
